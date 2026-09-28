@@ -56,67 +56,44 @@ def generate_image(prompt, is_nsfw=True, width=832, height=1216, is_custom=False
     height = (height // 8) * 8
 
     p_low = prompt.lower()
-    wants_futanari = any(k in p_low for k in ["futanari", "dickgirl", "shemale"])
-    wants_toy = any(k in p_low for k in ["dildo", "sex toy", "strapon", "strap-on", "vibrator", "anal bead"])
+    tags = {t.strip().lower() for t in prompt.split(",")}
 
-    has_female_tag = any(k in p_low for k in ["1girl", "2girls", "female", "woman", "girl"])
-    has_male_tag = any(k in p_low for k in ["1boy", "2boys", "1man", "male", "homdan", "cloud strife", "zoro", "dante", "gojo"])
-
-    if char_gender == "male":
-        is_male = True
-    elif char_gender == "female":
-        is_male = False
+    # В кастомном запросе пол из меню персонажа не должен переопределять текст.
+    if is_custom:
+        if "1boy" in tags and "1girl" not in tags:
+            is_male = True
+        elif "1girl" in tags and "1boy" not in tags:
+            is_male = False
+        else:
+            is_male = None
     else:
-        is_male = has_male_tag and not has_female_tag
+        is_male = char_gender == "male"
 
-    # Explicit couple / partner tags (only explicit interactions, never generic solo poses)
-    explicit_couple_tags = [
-        "1girl and 1boy", "hetero sex", "heterosexual sex", "couple sex", "intercourse",
-        "fellatio", "blowjob", "paizuri", "titfuck", "creampie", "cum inside", "cum on breasts",
-        "double penetration", "group sex", "gangbang", "threesome",
-        "секс", "минет", "отсос", "куни"
-    ]
-    has_partner = (with_partner and not is_male) or any(k in p_low for k in explicit_couple_tags)
+    # Партнёра добавляем только когда пользователь явно включил эту настройку.
+    has_partner = bool(with_partner and is_male is False and not is_custom)
 
     if has_partner:
-        # Strip 'solo' tag so diffusion model renders exactly 2 people instead of fusing them into 1 mutant/futanari
-        prompt = re.sub(r'\b(solo)\b,?\s*', '', prompt, flags=re.IGNORECASE)
-        if "1boy" not in prompt.lower():
-            if re.search(r'\b1girl\b', prompt, flags=re.IGNORECASE):
-                prompt = re.sub(r'\b1girl\b', '1girl, 1boy, couple, hetero', prompt, count=1, flags=re.IGNORECASE)
-            else:
-                prompt = f"1girl, 1boy, couple, hetero, {prompt}"
-        male_partner_tags = (
-            "1boy, male, muscular male, faceless male, "
-            "penis, large penis, erection, hard cock, veiny penis, testicles, balls, "
-            "uncensored, hetero, heterosexual sex, sex, penetration, 1girl and 1boy, intimacy"
-        )
-        neg_extra_parts = []
-        if not wants_futanari:
-            neg_extra_parts.append("(futanari, dickgirl:1.4)")
-        if not wants_toy:
-            neg_extra_parts.append("(dildo, sex toy, strap-on, vibrator:1.4)")
-        neg_extra_parts.append("(extra limbs, extra hands, extra legs, deformed penis, 2penises:1.3)")
-        neg_extra_parts.append("(3girls, 2boys, group, extra person, multiple persons:1.2)")
-        neg_gender = ", ".join(neg_extra_parts)
-    elif is_male:
-        if "1boy" not in prompt.lower() and "solo" not in prompt.lower():
-            prompt = f"1boy, solo, {prompt}"
-        neg_gender = (
-            "(female, woman, breasts, cleavage, pussy, 1girl, 2girls, futanari, dickgirl:1.4), "
-            "(extra person, multiple persons, 2boys:1.3)"
-        )
+        prompt = re.sub(r"(?i)(?:^|,)\s*solo\s*(?=,|$)", "", prompt)
+        prompt = re.sub(r",\s*,+", ",", prompt).strip(" ,")
+        if "1girl" not in tags:
+            prompt = "1girl, " + prompt
+        if "1boy" not in tags:
+            prompt = "1boy, " + prompt
+        neg_gender = "extra_person, 2boys, 3girls"
+    elif is_male is True:
+        if not is_custom and "1boy" not in tags:
+            prompt = "1boy, solo, " + prompt
+        neg_gender = "1girl, 2girls, extra_person" if not is_custom else ""
+    elif is_male is False:
+        if not is_custom and "1girl" not in tags:
+            prompt = "1girl, solo, " + prompt
+        neg_gender = "1boy, 2boys, extra_person" if not is_custom else ""
     else:
-        if "1girl" not in prompt.lower() and "solo" not in prompt.lower():
-            prompt = f"1girl, solo, {prompt}"
-        neg_female_parts = []
-        if not wants_futanari:
-            neg_female_parts.append("(futanari, dickgirl, penis, testicles, balls:1.4)")
-        if not wants_toy:
-            neg_female_parts.append("(dildo, sex toy, strap-on, vibrator:1.4)")
-        neg_female_parts.append("(1boy, 2boys, male:1.4)")
-        neg_female_parts.append("(extra person, multiple persons, 2girls:1.3)")
-        neg_gender = ", ".join(neg_female_parts)
+        # Для кастомного запроса с неизвестным составом сцены ничего не угадываем.
+        neg_gender = ""
+
+    # Дальше проверяем уже исправленный prompt.
+    p_low = prompt.lower()
 
     # Проверка на наличие специфического цвета кожи/шерсти в запросе
     has_custom_skin = any(k in p_low for k in [
@@ -138,33 +115,20 @@ def generate_image(prompt, is_nsfw=True, width=832, height=1216, is_custom=False
     base_negative = f"(3d, realistic, photo, cgi, render, blender, doll, figure:1.45), (monochrome, greyscale, sketch:1.3){color_anti_yellow}"
 
     if is_custom:
-        if has_partner and is_nsfw:
-            full_prompt = f"masterpiece, best quality, newest, {style_prefix}, {lora_tag}, {prompt}, {male_partner_tags}"
-        else:
-            full_prompt = f"masterpiece, best quality, newest, {style_prefix}, {lora_tag}, {prompt}"
+        full_prompt = (
+            f"masterpiece, best quality, newest, "
+            f"{style_prefix}, {lora_tag}, {prompt}"
+        )
         neg_prompt = (
             f"{base_negative}, (text, words, signature, watermark, username, caption, font, letter:1.3), "
             f"worst quality, low quality, bad anatomy, bad hands, blurry, mutated, extra limbs, extra fingers, {neg_gender}".strip(", ")
         )
     elif is_nsfw:
         cleaned_prompt = filter_clothing_tags(prompt)
-        skin_tag = "" if has_custom_skin else "fair skin, "
-        if is_male:
-            male_skin = "" if has_custom_skin else "fair skin, "
-            body_tags = f"nsfw, completely nude, no clothes, bare body, {male_skin}nipples, penis, balls, athletic, toned, bare legs, uncensored"
-        else:
-            female_body_tags = (
-                f"nsfw, completely nude, no clothes, bare body, {skin_tag}nipples, bare breasts, "
-                "pussy, navel, bare legs, uncensored, voluptuous, curvy figure, wide hips, thick thighs, hourglass figure"
-            )
-            if has_partner:
-                body_tags = f"{female_body_tags}, {male_partner_tags}"
-            else:
-                body_tags = female_body_tags
-
+        body_tags = "nsfw, nude"
         full_prompt = (
             f"masterpiece, best quality, newest, {style_prefix}, {lora_tag}, "
-            f"{cleaned_prompt}, {body_tags}, full body"
+            f"{cleaned_prompt}, {body_tags}"
         )
         neg_prompt = (
             f"{base_negative}, (clothes, clothing, outfit, costume, fabric, dress, skirt, shirt, pants, shorts, bra, "
@@ -173,21 +137,13 @@ def generate_image(prompt, is_nsfw=True, width=832, height=1216, is_custom=False
             f"worst quality, low quality, bad anatomy, bad hands, blurry, mutated, extra limbs, extra fingers, {neg_gender}".strip(", ")
         )
     else:
-        skin_tag = "" if has_custom_skin else "fair skin, "
-        if is_male:
-            male_skin = "" if has_custom_skin else "fair skin, "
-            body_tags = f"sfw, fully clothed, {male_skin}wearing stylish outfit, detailed clothing, athletic, handsome"
-        else:
-            body_tags = (
-                f"sfw, fully clothed, {skin_tag}wearing stylish outfit, detailed clothing, "
-                "voluptuous, curvy figure, wide hips, thick thighs, hourglass figure"
-            )
+        body_tags = "sfw"
         full_prompt = (
             f"masterpiece, best quality, newest, {style_prefix}, {lora_tag}, "
-            f"{prompt}, {body_tags}, full body"
+            f"{prompt}, {body_tags}"
         )
         neg_prompt = (
-            f"{base_negative}, (nsfw, nude, naked, bare, exposed, cleavage, nipples, pussy, uncensored, navel, bare legs:1.4), "
+            f"{base_negative}, (nsfw, nude, naked:1.3), "
             "(text, words, signature, watermark, username, caption, font, letter:1.3), "
             f"worst quality, low quality, bad anatomy, bad hands, blurry, mutated, extra limbs, extra fingers, {neg_gender}".strip(", ")
         )

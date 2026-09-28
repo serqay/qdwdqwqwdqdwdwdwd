@@ -25,6 +25,7 @@ __pycache__/
 *$py.class
 *.bak
 *.tmp
+*.zip
 
 # AI models, weights and datasets
 dataset_curated/

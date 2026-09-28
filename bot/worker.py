@@ -272,7 +272,24 @@ def queue_worker(token):
                              {"text": "🏠 Главное меню", "callback_data": "menu_main"}]
                         ]
                     }
-                send_photo(token, chat_id, img_bytes, caption=caption, reply_markup=reply_markup, parse_mode="HTML")
+                delivered = send_photo(
+                    token, chat_id, img_bytes,
+                    caption=caption,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML",
+                )
+                if not delivered:
+                    # Изображение уже сохранено в img_path: не теряем результат.
+                    send_message(
+                        token,
+                        chat_id,
+                        "⚠️ Рисунок создан, но Telegram не принял файл. "
+                        "Генерация сохранена на сервере. Обратитесь к администратору."
+                    )
+                    print(
+                        f"DELIVERY FAILED: user={user_id}, image={img_path}, id={img_id}",
+                        flush=True,
+                    )
             else:
                 refund_user_generation(user_id, consumed_type)
                 send_message(

@@ -454,6 +454,7 @@ def handle_callback_query(token, upd, stored_searches):
         c_sess["env_name"] = "Без окружения"
         c_sess["env_prompt"] = ""
         c_sess["state"] = "idle"
+        save_sessions()
         t, m = make_env_menu(c_sess)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
@@ -593,7 +594,7 @@ def handle_callback_query(token, upd, stored_searches):
             "✍️ <b>РЕЖИМ СВОЕГО ПРОМТА</b>\n\n"
             "В этом режиме вы сами задаете все детали желаемого арта: персонажа, одежду или её отсутствие, ракурс, действие и окружение.\n\n"
             "Бот не добавляет принудительных тегов одежды или наготы, а сохраняет только фирменный стиль: <code>gummyflux, cstyle, &lt;lora:gummyflux_v2:0.95&gt;</code>.\n\n"
-            "Отправьте ваш промт на английском языке сообщением прямо в чат:"
+            "Отправьте ваш промт на русском или английском языке сообщением прямо в чат:"
         )
         kb = [[{"text": "◀️ Отмена / Назад в меню", "callback_data": "menu_main"}]]
         reply_or_edit(token, c_chat_id, cb.get("message"), text, {"inline_keyboard": kb})
@@ -1267,7 +1268,7 @@ def handle_message(token, msg, stored_searches):
             return
 
     # 2. ОБРАБОТКА ИЗОБРАЖЕНИЯ (ПЕРСОНАЖ ПО ФОТО)
-    if "photo" in msg:
+    if "photo" in msg and m_sess.get("state") == "awaiting_char_photo":
         photo_list = msg.get("photo", [])
         if photo_list:
             send_message(token, m_chat, "🔍 <i>Загружаю фото и передаю в ИИ для анализа внешности персонажа...</i>")
@@ -1286,8 +1287,26 @@ def handle_message(token, msg, stored_searches):
                         return
 
                     char_name, tags = describe_character_by_photo(img_bytes)
+                    if not char_name or not tags:
+                        send_message(
+                            token,
+                            m_chat,
+                            "❌ Не удалось надёжно разобрать изображение. "
+                            "Прежний персонаж сохранён. Попробуйте другое фото или PNG-арт."
+                        )
+                        return
+
+                    # Пока ИИ работал, пользователь мог отменить операцию или выбрать другое.
+                    if m_sess.get("state") != "awaiting_char_photo":
+                        return
+
                     m_sess["char_name"] = char_name
                     m_sess["char_prompt"] = tags
+                    m_sess["char_gender"] = (
+                        "male" if "1boy" in [t.strip() for t in tags.split(",")]
+                        else "female" if "1girl" in [t.strip() for t in tags.split(",")]
+                        else m_sess.get("char_gender", "female")
+                    )
                     m_sess["state"] = "idle"
                     save_sessions()
 
@@ -1343,7 +1362,7 @@ def handle_message(token, msg, stored_searches):
             "ℹ️ <b>Справка по GummyFlux Bot</b>\n\n"
             "• Нажмите <b>/menu</b>, чтобы открыть панель управления генерацией артов.\n"
             "• Вы можете выбрать готового персонажа, позу и окружение или описать персонажа через ИИ и по фото.\n"
-            "• Чтобы использовать полностью свой промт, выберите раздел «✍️ Свой кастомный промт» в меню или отправьте описание на английском в чат.\n"
+            "• Чтобы использовать полностью свой промт, выберите раздел «✍️ Свой кастомный промт» в меню или отправьте описание в чат.\n"
             "• Каждый день вам доступно бесплатное количество генераций, а дополнительные можно приобрести через Telegram Stars или получить за приглашение друзей."
         )
         t, m = make_main_menu(m_sess, user_id=u_id, username=u_name)
