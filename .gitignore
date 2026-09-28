@@ -1,0 +1,56 @@
+# Secrets & Environment
+tg_config.json
+*.env
+.env*
+
+# Runtime databases & local states
+bot_database.json
+bot_sessions.json
+restart_notify.json
+*.flag
+service.log
+*.log
+
+# Generated user images and test outputs
+history_images/
+*.png
+*.jpg
+*.jpeg
+*.webp
+!bot_tray_icon.png
+
+# Python cache & temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.bak
+*.tmp
+
+# AI models, weights and datasets
+dataset_curated/
+training_dataset/
+flux_training_cloud/
+sd-scripts/
+stable-diffusion-webui-forge/
+MinecraftTheSiteEdition/
+*.safetensors
+*.ckpt
+*.pt
+*.bin
+
+# Local training pipeline scripts
+build_dataset.py
+generate_test.py
+lock_power_limit.ps1
+modal_train.py
+monitor_gummyflux.bat
+show_progress.bat
+start_gummyflux_pipeline.bat
+sync_foxgumie_dataset.py
+test_api.py
+tg_notifier.py
+thermal_guardian.py
+train_gummyflux.bat
+train_gummyflux_v2.bat
+Запустить бота в трее.bat
+push_to_github.bat

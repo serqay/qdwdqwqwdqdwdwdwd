@@ -1,0 +1,7 @@
+{
+  "bot_token": "YOUR_TELEGRAM_BOT_TOKEN_HERE",
+  "chat_id": "YOUR_TELEGRAM_ADMIN_CHAT_ID",
+  "interval_seconds": 120,
+  "admin_username": "YOUR_ADMIN_USERNAME",
+  "omniroute_key": "YOUR_OMNIROUTE_API_KEY_HERE"
+}
