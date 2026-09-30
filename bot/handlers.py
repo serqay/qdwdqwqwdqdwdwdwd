@@ -1,4 +1,4 @@
-﻿import os
+import os
 import time
 import json
 import html
@@ -672,6 +672,53 @@ def handle_callback_query(token, upd, stored_searches):
             return
         t, m = make_confirm_generation_menu(c_sess, user_id=u_id, username=u_name)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
+
+    elif c_data == "generate_img2img":
+        if not c_sess.get("init_image_b64"):
+            send_message(token, c_chat_id, "❌ Вы еще не отправили фото для генерации.")
+            return
+
+        c_sess["last_is_custom"] = False
+        c_sess["use_img2img"] = True
+        save_sessions()
+
+        is_nsfw = c_sess.get("mode") == "nsfw"
+        prompt_parts = [c_sess.get("char_prompt", "1girl, solo"), c_sess.get("pose_prompt", "looking at viewer")]
+        if c_sess.get("env_prompt"):
+            prompt_parts.append(c_sess["env_prompt"])
+        prompt = ", ".join(p for p in prompt_parts if p)
+
+        w = c_sess.get("width", 832)
+        h = c_sess.get("height", 1216)
+        steps = int(c_sess.get("steps", 20))
+        if not is_admin(u_id, u_name):
+            steps = max(15, min(25, steps))
+        model = c_sess.get("model", DEFAULT_MODEL)
+
+        from bot.queue_helper import put_task
+        put_task(generation_queue, u_id, is_admin(u_id, u_name), {
+            "token": token,
+            "chat_id": c_chat_id,
+            "user_id": u_id,
+            "username": u_name,
+            "first_name": u_fname,
+            "prompt": prompt,
+            "is_nsfw": is_nsfw,
+            "with_partner": (c_sess.get("partner_mode") == "with_male"),
+            "width": w,
+            "height": h,
+            "char_name": c_sess.get("char_name", "Персонаж"),
+            "pose_name": c_sess.get("pose_name", "Поза"),
+            "env_name": c_sess.get("env_name", "Окружение"),
+            "is_custom": False,
+            "steps": steps,
+            "model": model,
+            "char_gender": c_sess.get("char_gender", "female"),
+            "cfg_scale": c_sess.get("cfg_scale", DEFAULT_CFG_SCALE),
+            "consumed_type": None
+        })
+        q_pos = generation_queue.qsize()
+        send_message(token, c_chat_id, f"⏳ <b>Image-to-Image принято в очередь!</b>\nПозиция: {q_pos}")
 
     elif c_data == "confirm_exec_generate":
         if not check_pc_online_or_notify(token, c_chat_id, cb.get("message")):
