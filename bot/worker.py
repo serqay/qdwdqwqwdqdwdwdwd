@@ -158,9 +158,14 @@ def reload_flag_watcher(token, admin_chat_id):
 
 def queue_worker(token):
     while True:
-        task = generation_queue.get()
-        if task is None:
+        task_item = generation_queue.get()
+        if task_item is None:
             break
+            
+        if isinstance(task_item, tuple) and len(task_item) == 3:
+            _, _, task = task_item
+        else:
+            task = task_item
         consumed_type = None
         user_id = None
         chat_id = None
@@ -231,11 +236,22 @@ def queue_worker(token):
                 threading.Thread(target=progress_bar_worker, args=(token, chat_id, msg_id, progress_event, prefix), daemon=True).start()
             
             with gpu_lock:
-                img_bytes, elapsed = generate_image(
-                    prompt, is_nsfw=is_nsfw, width=width, height=height,
-                    is_custom=is_custom, steps=steps, with_partner=with_partner,
-                    model=model, char_gender=char_gender, cfg_scale=cfg_scale
-                )
+                if c_sess.get("use_img2img") and c_sess.get("init_image_b64"):
+                    from bot.img2img import generate_img2img
+                    b64 = c_sess.get("init_image_b64").split(",")[-1]
+                    img_bytes, elapsed = generate_img2img(
+                        prompt, b64, is_nsfw=is_nsfw, width=width, height=height,
+                        is_custom=is_custom, steps=steps, model=model, char_gender=char_gender, cfg_scale=cfg_scale
+                    )
+                    c_sess["use_img2img"] = False
+                    from bot.config import save_sessions
+                    save_sessions()
+                else:
+                    img_bytes, elapsed = generate_image(
+                        prompt, is_nsfw=is_nsfw, width=width, height=height,
+                        is_custom=is_custom, steps=steps, with_partner=with_partner,
+                        model=model, char_gender=char_gender, cfg_scale=cfg_scale
+                    )
             progress_event.set()
 
             if img_bytes:

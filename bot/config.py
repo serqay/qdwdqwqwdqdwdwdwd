@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import re
 import copy
@@ -76,7 +76,7 @@ is_shutting_down = False
 
 active_generations = set()
 sessions = {}
-generation_queue = queue.Queue()
+generation_queue = queue.PriorityQueue()
 
 CLOTHING_WORDS = [
     'clothes', 'clothing', 'outfit', 'costume', 'suit', 'dress', 'skirt',
@@ -95,21 +95,21 @@ CLOTHING_RE = re.compile(r'\b(' + '|'.join(re.escape(w) for w in CLOTHING_WORDS)
 
 DEFAULT_CHARS_FEMALE = [
     ("Tifa Lockhart", "1girl, solo, tifa lockhart, dark hair, red eyes, large breasts, athletic, white tank top, suspenders"),
-    ("2B (Nier:Automata)", "1girl, solo, 2b \(nier:automata\), blindfold, white hair, goth dress, sword"),
+    ("2B (Nier:Automata)", "1girl, solo, 2b \\\\(nier:automata\\\\), blindfold, white hair, goth dress, sword"),
     ("Ahri (League of Legends)", "1girl, solo, ahri, nine tails, fox ears, blue eyes, curvy, magical orb"),
     ("Raiden Shogun", "1girl, solo, raiden shogun, purple hair, braid, purple eyes, ornate kimono, divine"),
-    ("Power (Chainsaw Man)", "1girl, solo, power \(chainsaw man\), blonde hair, horns, sharp teeth, casual jacket"),
-    ("Makima", "1girl, solo, makima \(chainsaw man\), red hair, braided hair, yellow eyes with rings, white shirt, tie"),
-    ("Rem (Re:Zero)", "1girl, solo, rem \(re:zero\), blue hair, short hair, maid outfit, one eye covered"),
-    ("Loona (Helluva Boss)", "1girl, solo, loona \(helluva boss\), anthropomorphic wolf, wolf girl, grey fur, red eyes, goth clothes")
+    ("Power (Chainsaw Man)", "1girl, solo, power \\\\(chainsaw man\\\\), blonde hair, horns, sharp teeth, casual jacket"),
+    ("Makima", "1girl, solo, makima \\\\(chainsaw man\\\\), red hair, braided hair, yellow eyes with rings, white shirt, tie"),
+    ("Rem (Re:Zero)", "1girl, solo, rem \\\\(re:zero\\\\), blue hair, short hair, maid outfit, one eye covered"),
+    ("Loona (Helluva Boss)", "1girl, solo, loona \\\\(helluva boss\\\\), anthropomorphic wolf, wolf girl, grey fur, red eyes, goth clothes")
 ]
 
 DEFAULT_CHARS_MALE = [
-    ("Homdan (Minecraft)", "1boy, solo, homdan \(minecraft\), dark skin, dark-skinned male, bear ears, animal ears, brown hair, short hair, curly hair, mouth mask, blue hoodie"),
+    ("Homdan (Minecraft)", "1boy, solo, homdan \\\\(minecraft\\\\), dark skin, dark-skinned male, bear ears, animal ears, brown hair, short hair, curly hair, mouth mask, blue hoodie"),
     ("Gojo Satoru (JJK)", "1boy, solo, gojo satoru, blindfold, white hair, spiky hair, tall, handsome, dark blue jacket"),
     ("Cloud Strife (FF7)", "1boy, solo, cloud strife, blonde hair, spiky hair, blue eyes, athletic, shoulder armor, black turtleneck"),
     ("Zoro (One Piece)", "1boy, solo, roronoa zoro, green hair, short hair, scar on eye, muscular, three earrings, green haramaki"),
-    ("Dante (DMC)", "1boy, solo, dante \(devil may cry\), white hair, red coat, athletic, handsome, stubble")
+    ("Dante (DMC)", "1boy, solo, dante \\\\(devil may cry\\\\), white hair, red coat, athletic, handsome, stubble")
 ]
 
 DEFAULT_CHARS = DEFAULT_CHARS_FEMALE
@@ -151,7 +151,7 @@ DEFAULT_POSES_NSFW = [
 DEFAULT_POSES = DEFAULT_POSES_SFW + DEFAULT_POSES_NSFW
 
 DEFAULT_ENVS = [
-    ("Ruins (Undertale)", "ruins \(undertale\), ancient stone hall, sunbeams"),
+    ("Ruins (Undertale)", "ruins \\\\(undertale\\\\), ancient stone hall, sunbeams"),
     ("Cyberpunk City", "cyberpunk city, neon lights, rainy street, night, reflections"),
     ("Cozy Bedroom", "cozy bedroom, messy bed, warm lighting, posters on wall"),
     ("Mystical Forest", "mystical forest, glowing mushrooms, fairy lights, magical atmosphere"),

@@ -1,4 +1,4 @@
-import os
+﻿import os
 import html
 import urllib.parse
 from datetime import datetime
@@ -280,10 +280,10 @@ def make_cfg_menu(session):
         [
             {"text": "1.0", "callback_data": "set_cfg_1.0"},
             {"text": "3.5", "callback_data": "set_cfg_3.5"},
-            {"text": "5.5 (База)", "callback_data": "set_cfg_5.5"},
+            {"text": "5.0 (База)", "callback_data": "set_cfg_5.0"},
+            {"text": "5.5", "callback_data": "set_cfg_5.5"},
             {"text": "7.0", "callback_data": "set_cfg_7.0"},
-            {"text": "10.0", "callback_data": "set_cfg_10.0"},
-            {"text": "15.0", "callback_data": "set_cfg_15.0"}
+            {"text": "10.0", "callback_data": "set_cfg_10.0"}
         ],
         [{"text": "✍️ Ввести точное число (от 1.0 до 15.0)", "callback_data": "start_custom_cfg"}],
         [{"text": "◀️ Назад в настройки", "callback_data": "menu_settings"}]
@@ -308,9 +308,9 @@ def make_models_menu(session):
 
 def make_samples_menu(session, user_id=None, username=None):
     admin_mode = is_admin(user_id, username)
-    steps = int(session.get("steps", 20))
+    steps = int(session.get("steps", 28))
     if not admin_mode:
-        steps = max(15, min(25, steps))
+        steps = max(15, min(30, steps))
 
     if admin_mode:
         text = (
@@ -318,17 +318,16 @@ def make_samples_menu(session, user_id=None, username=None):
             f"Текущее значение: <b>{steps}</b> шагов.\n\n"
             "• <b>15 шагов</b> — быстрый рендер (~4 сек)\n"
             "• <b>20 шагов</b> — стандарт (~5 сек)\n"
-            "• <b>25 шагов</b> — высокое качество (~7 сек)\n"
-            "• <b>30 шагов</b> — глубокая проработка (~9 сек)\n"
+            "• <b>28 шагов</b> — эталонный фирменный стиль (~7 сек)\n"
+            "• <b>35 шагов</b> — глубокая проработка (~9 сек)\n"
             "• <b>40 шагов</b> — ультра-детализация\n\n"
             "Выберите пресет или введите нужное число (от 5 до 60):"
         )
         kb = [
             [{"text": f"{'✅ ' if steps == 15 else ''}15 (Быстро)", "callback_data": "set_samples_15"},
              {"text": f"{'✅ ' if steps == 20 else ''}20 (Стандарт)", "callback_data": "set_samples_20"},
-             {"text": f"{'✅ ' if steps == 25 else ''}25 (Детально)", "callback_data": "set_samples_25"}],
-            [{"text": f"{'✅ ' if steps == 30 else ''}30 (Качество)", "callback_data": "set_samples_30"},
-             {"text": f"{'✅ ' if steps == 35 else ''}35 (Глубоко)", "callback_data": "set_samples_35"},
+             {"text": f"{'✅ ' if steps == 28 else ''}28 (Эталон стиля)", "callback_data": "set_samples_28"}],
+            [{"text": f"{'✅ ' if steps == 35 else ''}35 (Глубоко)", "callback_data": "set_samples_35"},
              {"text": f"{'✅ ' if steps == 40 else ''}40 (Экстрим)", "callback_data": "set_samples_40"}],
             [{"text": "⌨️ Ввести точное число (от 5 до 60)", "callback_data": "start_custom_samples"}],
             [{"text": "◀️ Назад в настройки", "callback_data": "menu_settings"}]
@@ -337,17 +336,17 @@ def make_samples_menu(session, user_id=None, username=None):
         text = (
             "⚡ <b>ШАГИ СЕМПЛИРОВАНИЯ (SAMPLES)</b>\n\n"
             f"Текущее значение: <b>{steps}</b> шагов.\n"
-            "<i>(Для стандартных пользователей доступен диапазон от 15 до 25 шагов)</i>\n\n"
+            "<i>(Для пользователей доступен диапазон от 15 до 30 шагов)</i>\n\n"
             "• <b>15 шагов</b> — быстрый рендер (~4 сек)\n"
-            "• <b>20 шагов</b> — оптимальный баланс скорости и качества (~5 сек)\n"
-            "• <b>25 шагов</b> — максимальная детализация (~7 сек)\n\n"
-            "Выберите пресет или введите число от 15 до 25:"
+            "• <b>20 шагов</b> — скорость (~5 сек)\n"
+            "• <b>28 шагов</b> — эталонный фирменный стиль (~7 сек)\n\n"
+            "Выберите пресет или введите число от 15 до 30:"
         )
         kb = [
             [{"text": f"{'✅ ' if steps == 15 else ''}15 (Быстро)", "callback_data": "set_samples_15"},
-             {"text": f"{'✅ ' if steps == 20 else ''}20 (Стандарт)", "callback_data": "set_samples_20"},
-             {"text": f"{'✅ ' if steps == 25 else ''}25 (Максимум)", "callback_data": "set_samples_25"}],
-            [{"text": "⌨️ Ввести число (от 15 до 25)", "callback_data": "start_custom_samples"}],
+             {"text": f"{'✅ ' if steps == 20 else ''}20 (Скорость)", "callback_data": "set_samples_20"},
+             {"text": f"{'✅ ' if steps == 28 else ''}28 (Эталон стиля)", "callback_data": "set_samples_28"}],
+            [{"text": "⌨️ Ввести число (от 15 до 30)", "callback_data": "start_custom_samples"}],
             [{"text": "◀️ Назад в настройки", "callback_data": "menu_settings"}]
         ]
     return text, {"inline_keyboard": kb}

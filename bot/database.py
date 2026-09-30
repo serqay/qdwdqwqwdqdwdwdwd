@@ -1,4 +1,4 @@
-﻿import os
+import os
 import time
 import uuid
 import threading
@@ -30,7 +30,9 @@ def init_db():
             last_seen TEXT,
             referred_by TEXT,
             referrals_count INTEGER DEFAULT 0,
-            referral_bonus_earned INTEGER DEFAULT 0
+            referral_bonus_earned INTEGER DEFAULT 0,
+            vip_until TEXT,
+            language TEXT DEFAULT 'ru'
         )''')
         c.execute('''
         CREATE TABLE IF NOT EXISTS history (
@@ -47,7 +49,8 @@ def init_db():
             prompt TEXT,
             elapsed REAL,
             is_custom BOOLEAN,
-            image_path TEXT
+            image_path TEXT,
+            seed INTEGER DEFAULT -1
         )''')
         c.execute('''
         CREATE TABLE IF NOT EXISTS messages (
@@ -148,8 +151,8 @@ def touch_user(user_id, username=None, first_name=None):
             INSERT INTO users (
                 user_id, username, first_name, daily_date, daily_count, base_daily_limit,
                 bonus_credits, total_count, total_stars, last_seen, referred_by,
-                referrals_count, referral_bonus_earned
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                referrals_count, referral_bonus_earned, vip_until, language
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'ru')
             ''', (
                 uid, username or "", first_name or "", today, 0, 3, 0, 0, 0, now_str, None, 0, 0
             ))
