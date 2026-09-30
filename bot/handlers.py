@@ -712,7 +712,7 @@ def handle_callback_query(token, upd, stored_searches):
             c_sess["last_is_custom"] = False
             save_sessions()
             from bot.queue_helper import put_task
-                put_task(generation_queue, u_id, is_admin(u_id, u_name), {
+            put_task(generation_queue, u_id, is_admin(u_id, u_name), {
                 "token": token,
                 "chat_id": c_chat_id,
                 "user_id": u_id,
@@ -779,7 +779,7 @@ def handle_callback_query(token, upd, stored_searches):
             save_sessions()
 
             from bot.queue_helper import put_task
-                put_task(generation_queue, u_id, is_admin(u_id, u_name), {
+            put_task(generation_queue, u_id, is_admin(u_id, u_name), {
                 "token": token,
                 "chat_id": c_chat_id,
                 "user_id": u_id,
@@ -863,7 +863,7 @@ def handle_callback_query(token, upd, stored_searches):
                 )
 
                 from bot.queue_helper import put_task
-                put_task(generation_queue, u_id, is_admin(u_id, u_name), {
+            put_task(generation_queue, u_id, is_admin(u_id, u_name), {
                     "token": token,
                     "chat_id": c_chat_id,
                     "user_id": u_id,
@@ -946,7 +946,7 @@ def handle_callback_query(token, upd, stored_searches):
                 send_message(token, c_chat_id, f"вЏі <b>РќРѕРІС‹Р№ РІР°СЂРёР°РЅС‚ {html.escape(char_name)} РїСЂРёРЅСЏС‚ РІ РѕС‡РµСЂРµРґСЊ!</b>\nРџРѕР·РёС†РёСЏ: {q_pos}")
 
             from bot.queue_helper import put_task
-                put_task(generation_queue, u_id, is_admin(u_id, u_name), {
+            put_task(generation_queue, u_id, is_admin(u_id, u_name), {
                 "token": token,
                 "chat_id": c_chat_id,
                 "user_id": u_id,
@@ -1032,7 +1032,7 @@ def handle_callback_query(token, upd, stored_searches):
                 send_message(token, c_chat_id, f"вЏі <b>Р РµР¶РёРј РїРµСЂРµРєР»СЋС‡РµРЅ: {mode_label}!</b>\nР“РµРЅРµСЂР°С†РёСЏ {html.escape(char_name)} РїСЂРёРЅСЏС‚Р° РІ РѕС‡РµСЂРµРґСЊ (РїРѕР·РёС†РёСЏ: {q_pos})...")
 
             from bot.queue_helper import put_task
-                put_task(generation_queue, u_id, is_admin(u_id, u_name), {
+            put_task(generation_queue, u_id, is_admin(u_id, u_name), {
                 "token": token,
                 "chat_id": c_chat_id,
                 "user_id": u_id,
