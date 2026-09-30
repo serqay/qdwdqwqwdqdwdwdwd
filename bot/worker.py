@@ -15,8 +15,8 @@ from bot.config import (
     is_shutting_down_lock, MAX_HISTORY_IMAGES,
     get_admin_chat_id, AVAILABLE_MODELS, DEFAULT_MODEL, DEFAULT_CFG_SCALE
 )
-from bot.sd_client import generate_image, is_generation_busy, trim_system_memory
-from bot.database import log_generation, refund_user_generation, is_admin
+from bot.sd_client import generate_image, is_generation_busy, trim_system_memory, is_backend_online
+from bot.database import log_generation, refund_user_generation, is_admin, get_pc_notifies, clear_pc_notifies
 from bot.telegram_api import send_message, send_photo
 
 def cleanup_old_history_images(history_dir, max_files=MAX_HISTORY_IMAGES):
@@ -210,7 +210,7 @@ def queue_worker(token):
             user_id = str(user_id)
             steps = int(steps)
             if not is_admin(user_id, username):
-                steps = max(15, min(25, steps))
+                steps = max(15, min(30, steps))
             else:
                 steps = max(5, min(60, steps))
 
@@ -222,7 +222,13 @@ def queue_worker(token):
             model_info = AVAILABLE_MODELS.get(model, AVAILABLE_MODELS.get(DEFAULT_MODEL, {}))
             model_badge = model_info.get("name", "NoobAI XL")
 
-            send_message(token, chat_id, f"Ваша очередь подошла! Рендеринг: {html.escape(char_name)} ({model_badge}, {width}x{height}, {steps} samples, CFG {cfg_scale})... (ожидайте ~5-8 сек)")
+            msg_res = send_message(token, chat_id, f"Ваша очередь подошла! Рендеринг: {html.escape(char_name)} ({model_badge}, {width}x{height}, {steps} samples, CFG {cfg_scale})... (ожидайте ~5-8 сек)")
+            progress_event = threading.Event()
+            if msg_res and msg_res.get("ok"):
+                msg_id = msg_res.get("result", {}).get("message_id")
+                from bot.progress import progress_bar_worker
+                prefix = f"Ваша очередь подошла! Рендеринг: {html.escape(char_name)} ({model_badge}, {width}x{height})"
+                threading.Thread(target=progress_bar_worker, args=(token, chat_id, msg_id, progress_event, prefix), daemon=True).start()
             
             with gpu_lock:
                 img_bytes, elapsed = generate_image(
@@ -230,6 +236,7 @@ def queue_worker(token):
                     is_custom=is_custom, steps=steps, with_partner=with_partner,
                     model=model, char_gender=char_gender, cfg_scale=cfg_scale
                 )
+            progress_event.set()
 
             if img_bytes:
                 img_id = uuid.uuid4().hex[:8]
@@ -331,3 +338,37 @@ def memory_guardian_loop():
         except Exception:
             pass
         time.sleep(30)
+
+def pc_monitor_worker(token):
+    """
+    Фоновый мониторинг доступности локального сервера генерации (SD Forge).
+    Когда сервер переходит из состояния 'offline' в 'online', рассылает уведомления
+    всем пользователям, ожидавшим включения ПК, и очищает список ожидания.
+    """
+    was_online = is_backend_online()
+    while True:
+        try:
+            time.sleep(10)
+            is_now_online = is_backend_online()
+            if not was_online and is_now_online:
+                waiters = get_pc_notifies()
+                if waiters:
+                    clear_pc_notifies()
+                    notify_msg = (
+                        "⚡ <b>Компьютер включен! Генерация снова доступна.</b>\n\n"
+                        "Служба нейросети активна и готова к созданию артов. Нажмите кнопку ниже для старта:"
+                    )
+                    reply_markup = {
+                        "inline_keyboard": [
+                            [{"text": "🎨 Создать арт", "callback_data": "menu_main"}]
+                        ]
+                    }
+                    for cid in waiters:
+                        try:
+                            send_message(token, cid, notify_msg, reply_markup=reply_markup)
+                            time.sleep(0.05)
+                        except Exception as e:
+                            print(f"Error sending PC online notify to {cid}: {e}", flush=True)
+            was_online = is_now_online
+        except Exception as e:
+            print(f"PC monitor worker error: {e}", flush=True)

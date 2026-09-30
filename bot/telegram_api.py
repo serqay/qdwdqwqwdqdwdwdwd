@@ -1,9 +1,10 @@
-import json
+﻿import json
 import re
 import urllib.request
 import urllib.parse
 import urllib.error
 import uuid
+import time
 
 def strip_html_tags(text):
     if not text:
@@ -25,8 +26,6 @@ def api_call(token, method, data=None):
             body = e.read().decode("utf-8")
             err_data = json.loads(body)
             desc = err_data.get("description", "")
-            # Telegram returns HTTP 400 when an edit does not change the message content.
-            # In bot UI workflows this is an idempotent success, not an error.
             if "message is not modified" in desc:
                 return {"ok": True, "result": True, "description": desc}
             print(f"Telegram API HTTPError {method}: {err_data}", flush=True)
@@ -50,7 +49,6 @@ def send_message(token, chat_id, text, reply_markup=None, parse_mode="HTML"):
     if (not res or not res.get("ok")) and parse_mode:
         desc = (res.get("description") if res else "") or ""
         if "can't parse entities" in desc:
-            # Fallback to plain text with HTML tags stripped so raw tags are never shown to user
             payload["text"] = strip_html_tags(text)
             payload.pop("parse_mode", None)
             res = api_call(token, "sendMessage", payload)
@@ -75,7 +73,7 @@ def edit_message(token, chat_id, message_id, text, reply_markup=None, parse_mode
             res = api_call(token, "editMessageText", payload)
     return res
 
-def send_photo(token, chat_id, image_bytes, caption="", reply_markup=None, parse_mode="HTML"):
+def send_photo(token, chat_id, image_bytes, caption="", reply_markup=None, parse_mode="HTML", retries=2):
     boundary = f"----FormBoundary{uuid.uuid4().hex}"
     body = bytearray()
     body.extend(f"--{boundary}\r\n".encode("utf-8"))
@@ -107,22 +105,30 @@ def send_photo(token, chat_id, image_bytes, caption="", reply_markup=None, parse
     body.extend(f"--{boundary}--\r\n".encode("utf-8"))
 
     url = f"https://api.telegram.org/bot{token}/sendPhoto"
-    req = urllib.request.Request(url, data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return resp.status == 200
-    except urllib.error.HTTPError as e:
+    
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
         try:
-            err_data = json.loads(e.read().decode("utf-8"))
-            print(f"Error sending photo (HTTPError): {err_data}", flush=True)
-            if parse_mode and "can't parse entities" in err_data.get("description", ""):
-                return send_photo(token, chat_id, image_bytes, caption=strip_html_tags(caption), reply_markup=reply_markup, parse_mode=None)
-        except Exception:
-            pass
-        return False
-    except Exception as e:
-        print(f"Error sending photo: {e}", flush=True)
-        return False
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return resp.status == 200
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode("utf-8"))
+                print(f"Error sending photo (HTTPError): {err_data}", flush=True)
+                if parse_mode and "can't parse entities" in err_data.get("description", ""):
+                    return send_photo(token, chat_id, image_bytes, caption=strip_html_tags(caption), reply_markup=reply_markup, parse_mode=None, retries=0)
+            except Exception:
+                pass
+            if attempt < retries:
+                time.sleep(2)
+                continue
+            return False
+        except Exception as e:
+            print(f"Error sending photo (Attempt {attempt+1}): {e}", flush=True)
+            if attempt < retries:
+                time.sleep(2)
+                continue
+            return False
 
 def get_file(token, file_id):
     res = api_call(token, "getFile", {"file_id": file_id})

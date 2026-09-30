@@ -12,28 +12,9 @@ from bot.config import (
 
 def trim_system_memory():
     """
-    Освобождает неиспользуемую память (Working Set) процесса бота
-    и фонового процесса SD Forge / WebUI, предотвращая утечки до 15+ ГБ RAM.
+    Освобождает неиспользуемую память (Working Set) процесса бота.
     """
     gc.collect()
-    try:
-        import ctypes
-        # Очищаем память текущего процесса бота
-        ctypes.windll.psapi.EmptyWorkingSet(ctypes.windll.kernel32.GetCurrentProcess())
-        # Ищем и очищаем Working Set всех процессов Python (SD Forge launch.py, torch и т.д.)
-        import psutil
-        for p in psutil.process_iter(['pid', 'name', 'cmdline']):
-            try:
-                cmd = " ".join(p.info.get('cmdline') or []).lower()
-                if "launch.py" in cmd or "stable-diffusion" in cmd or "forge" in cmd or "webui" in cmd:
-                    h = ctypes.windll.kernel32.OpenProcess(0x1F0FFF, False, p.pid)
-                    if h:
-                        ctypes.windll.psapi.EmptyWorkingSet(h)
-                        ctypes.windll.kernel32.CloseHandle(h)
-            except Exception:
-                pass
-    except Exception:
-        pass
 
 def filter_clothing_tags(prompt_str):
     tags = [t.strip() for t in prompt_str.split(',') if t.strip()]
@@ -44,12 +25,43 @@ def filter_clothing_tags(prompt_str):
             cleaned.append(t)
     return ', '.join(cleaned)
 
+def is_backend_online(timeout=1.5):
+    """
+    Быстрая проверка доступности сервера генерации (SD Forge).
+    Работает как при локальном запуске, так и через SSH reverse-tunnel на VPS.
+    """
+    try:
+        req = urllib.request.Request("http://127.0.0.1:7860/sdapi/v1/progress?skip_current_image=true")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
 def is_generation_busy():
     with active_lock:
         a_len = len(active_generations)
     return a_len > 0 or not generation_queue.empty() or gpu_lock.locked()
 
-def generate_image(prompt, is_nsfw=True, width=832, height=1216, is_custom=False, steps=20, with_partner=False, model=DEFAULT_MODEL, char_gender="female", cfg_scale=DEFAULT_CFG_SCALE):
+def load_prompt_settings():
+    """
+    Загружает актуальные настройки промптов и параметров генерации из prompt_settings.json.
+    Ищет файл локально или в рабочей директории VPS.
+    """
+    candidate_paths = [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "prompt_settings.json"),
+        os.path.join(os.getcwd(), "prompt_settings.json"),
+        "/root/ai_bot/prompt_settings.json"
+    ]
+    for p in candidate_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+    return {}
+
+def generate_image(prompt, is_nsfw=True, width=832, height=1216, is_custom=False, steps=28, with_partner=False, model=DEFAULT_MODEL, char_gender="female", cfg_scale=DEFAULT_CFG_SCALE):
     width = min(max(512, width), 1500)
     height = min(max(512, height), 1500)
     width = (width // 8) * 8
@@ -103,55 +115,93 @@ def generate_image(prompt, is_nsfw=True, width=832, height=1216, is_custom=False
     ])
 
     # Извлечение параметров стиля и LoRA для конкретной выбранной модели
+    dyn = load_prompt_settings()
     model_info = AVAILABLE_MODELS.get(model, AVAILABLE_MODELS.get(DEFAULT_MODEL, {}))
-    checkpoint_name = model_info.get("checkpoint", "NoobAI-XL-Vpred-v1.0.safetensors")
-    lora_name = model_info.get("lora_name", "gummyflux_v2")
-    lora_weight = model_info.get("lora_weight", 0.8)
-    style_prefix = model_info.get("style_prefix", "cstyle, glossy skin, sticker outline")
-    lora_tag = f"<lora:{lora_name}:{lora_weight}>"
 
-    # Строгий негативный фильтр против 3D, фотореализма, монохрома и противоестественного пожелтения кожи
-    color_anti_yellow = "" if has_custom_skin else ", (yellow skin, orange skin, colored skin, unnatural skin tone:1.35)"
-    base_negative = f"(3d, realistic, photo, cgi, render, blender, doll, figure:1.45), (monochrome, greyscale, sketch:1.3){color_anti_yellow}"
+    if model == "noobai":
+        checkpoint_name = dyn.get("checkpoint") or model_info.get("checkpoint", "NoobAI-XL-Vpred-v1.0.safetensors")
+        lora_name = dyn.get("lora_name", model_info.get("lora_name", "gummyflux"))
+        raw_w = dyn.get("lora_weight", model_info.get("lora_weight", 0.95))
+        style_prefix = dyn.get("style_prefix", model_info.get("style_prefix", "gummyflux, cstyle"))
+        quality_suffix = dyn.get("quality_suffix", "masterpiece, best quality, rich color, detailed shading, vibrant colors")
+        base_negative = dyn.get("base_negative", "(monochrome, greyscale, sketch, lineart, uncolored, coloring book:1.4), low quality, worst quality, blurry, deformed, bad anatomy, bad hands, missing fingers, extra fingers, 3d, realistic, photo, ugly, disfigured, text, watermark")
+        clothing_negative = dyn.get("clothing_negative", "(clothes, clothing, outfit, costume, fabric, dress, skirt, shirt, pants, shorts, bra, panties, underwear, swimwear, swimsuit, apron, gloves, socks, covering, censor, censored, mosaic censoring, bar censor:1.4)")
+        sfw_negative = dyn.get("sfw_negative", "(nsfw, nude, naked:1.3)")
+        sampler_name = dyn.get("sampler_name", "Euler")
+        clip_skip = int(dyn.get("clip_skip", 1))
+    else:
+        checkpoint_name = model_info.get("checkpoint", "Illustrious-XL-v0.1.safetensors")
+        lora_name = model_info.get("lora_name", "artist_style_lora")
+        raw_w = model_info.get("lora_weight", 0.85)
+        style_prefix = model_info.get("style_prefix", "cstyle, glossy skin, sticker outline")
+        quality_suffix = "masterpiece, best quality, rich color, detailed shading, vibrant colors"
+        base_negative = "(monochrome, greyscale, sketch, lineart, uncolored, coloring book:1.4), low quality, worst quality, blurry, deformed, bad anatomy, bad hands, missing fingers, extra fingers, 3d, realistic, photo, ugly, disfigured, text, watermark"
+        clothing_negative = "(clothes, clothing, outfit, costume, fabric, dress, skirt, shirt, pants, shorts, bra, panties, underwear, swimwear, swimsuit, apron, gloves, socks, covering, censor, censored, mosaic censoring, bar censor:1.4)"
+        sfw_negative = "(nsfw, nude, naked:1.3)"
+        sampler_name = dyn.get("sampler_name", "Euler")
+        clip_skip = int(dyn.get("clip_skip", 1))
+
+    try:
+        lora_w_str = str(round(float(raw_w), 2))
+    except Exception:
+        lora_w_str = "0.95"
+    lora_tag = f"<lora:{lora_name}:{lora_w_str}>" if lora_name else ""
 
     if is_custom:
-        full_prompt = (
-            f"masterpiece, best quality, newest, "
-            f"{style_prefix}, {lora_tag}, {prompt}"
-        )
-        neg_prompt = (
-            f"{base_negative}, (text, words, signature, watermark, username, caption, font, letter:1.3), "
-            f"worst quality, low quality, bad anatomy, bad hands, blurry, mutated, extra limbs, extra fingers, {neg_gender}".strip(", ")
-        )
+        prefix_parts = []
+        if lora_tag and "<lora:" not in p_low:
+            prefix_parts.append(lora_tag)
+        if style_prefix:
+            for s_part in [s.strip() for s in style_prefix.split(",") if s.strip()]:
+                if s_part.lower() not in p_low:
+                    prefix_parts.append(s_part)
+
+        custom_prefix = ", ".join(prefix_parts)
+        
+        if is_nsfw:
+            body_tags = (
+                "nsfw, completely nude, no clothes, bare body, nipples, bare breasts, "
+                "pussy, navel, bare legs, uncensored, voluptuous, curvy figure, wide hips, thick thighs, "
+                "hourglass figure, full body"
+            )
+            prompt = filter_clothing_tags(prompt)
+            neg_prompt = f"{clothing_negative}, {base_negative}, {neg_gender}".strip(", ")
+        else:
+            body_tags = (
+                "sfw, fully clothed, wearing stylish outfit, detailed clothing, "
+                "voluptuous, curvy figure, wide hips, thick thighs, hourglass figure, full body"
+            )
+            neg_prompt = f"{sfw_negative}, {base_negative}, {neg_gender}".strip(", ")
+
+        full_prompt = f"{custom_prefix}, {prompt}, {body_tags}, {quality_suffix}".strip(", ")
     elif is_nsfw:
         cleaned_prompt = filter_clothing_tags(prompt)
-        body_tags = "nsfw, nude"
-        full_prompt = (
-            f"masterpiece, best quality, newest, {style_prefix}, {lora_tag}, "
-            f"{cleaned_prompt}, {body_tags}"
+        body_tags = (
+            "nsfw, completely nude, no clothes, bare body, nipples, bare breasts, "
+            "pussy, navel, bare legs, uncensored, voluptuous, curvy figure, wide hips, thick thighs, "
+            "hourglass figure, full body"
         )
-        neg_prompt = (
-            f"{base_negative}, (clothes, clothing, outfit, costume, fabric, dress, skirt, shirt, pants, shorts, bra, "
-            "panties, underwear, swimwear, swimsuit, apron, gloves, socks, covering, censor, censored, "
-            "mosaic censoring, bar censor:1.4), (text, words, signature, watermark, username, caption, font, letter:1.3), "
-            f"worst quality, low quality, bad anatomy, bad hands, blurry, mutated, extra limbs, extra fingers, {neg_gender}".strip(", ")
-        )
+        full_prompt = f"{lora_tag} {style_prefix}, {cleaned_prompt}, {body_tags}, {quality_suffix}".strip(", ")
+        neg_prompt = f"{clothing_negative}, {base_negative}, {neg_gender}".strip(", ")
     else:
-        body_tags = "sfw"
-        full_prompt = (
-            f"masterpiece, best quality, newest, {style_prefix}, {lora_tag}, "
-            f"{prompt}, {body_tags}"
+        body_tags = (
+            "sfw, fully clothed, wearing stylish outfit, detailed clothing, "
+            "voluptuous, curvy figure, wide hips, thick thighs, hourglass figure, full body"
         )
-        neg_prompt = (
-            f"{base_negative}, (nsfw, nude, naked:1.3), "
-            "(text, words, signature, watermark, username, caption, font, letter:1.3), "
-            f"worst quality, low quality, bad anatomy, bad hands, blurry, mutated, extra limbs, extra fingers, {neg_gender}".strip(", ")
-        )
+        full_prompt = f"{lora_tag} {style_prefix}, {prompt}, {body_tags}, {quality_suffix}".strip(", ")
+        neg_prompt = f"{sfw_negative}, {base_negative}, {neg_gender}".strip(", ")
 
     try:
         cfg_val = round(min(max(1.0, float(cfg_scale)), 15.0), 1)
     except Exception:
         cfg_val = DEFAULT_CFG_SCALE
+
+    # DynamicThresholding (CFG-Fix) — mimic_scale из настроек, по умолчанию 7.0
+    dt_enabled = bool(dyn.get("dt_enabled", True))
+    try:
+        dt_mimic = round(float(dyn.get("dt_mimic_scale", 7.0)), 1)
+    except Exception:
+        dt_mimic = 7.0
 
     # Шаги семплирования (Samples) и параметры генерации
     payload = {
@@ -161,10 +211,29 @@ def generate_image(prompt, is_nsfw=True, width=832, height=1216, is_custom=False
         "cfg_scale": cfg_val,
         "width": width,
         "height": height,
-        "sampler_name": "Euler a",
+        "sampler_name": sampler_name,
         "override_settings": {
             "sd_model_checkpoint": checkpoint_name,
+            "CLIP_stop_at_last_layers": clip_skip,
             "fp8_storage": "Enable for SDXL"
+        },
+        "alwayson_scripts": {
+            "DynamicThresholding (CFG-Fix) Integrated": {
+                "args": [
+                    dt_enabled,   # enabled
+                    dt_mimic,     # mimic_scale
+                    1.0,          # threshold_percentile
+                    "Constant",   # mimic_mode
+                    0.0,          # mimic_scale_min
+                    "Constant",   # cfg_mode
+                    0.0,          # cfg_scale_min
+                    1.0,          # sched_val
+                    "enable",     # separate_feature_channels
+                    "MEAN",       # scaling_startpoint
+                    "AD",         # variability_measure
+                    1.0           # interpolate_phi
+                ]
+            }
         }
     }
 
