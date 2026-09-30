@@ -50,7 +50,7 @@ def reply_or_edit(token, chat_id, msg, text, reply_markup=None):
         return send_message(token, chat_id, text, reply_markup=reply_markup)
     res = edit_message(token, chat_id, msg_id, text, reply_markup=reply_markup)
     if not res or not res.get("ok"):
-        desc = (res.get("description") if res else "") or ""
+        desc = (res.get("description") if res else "Поза") or "Поза"
         if "message is not modified" in desc:
             return res
         return send_message(token, chat_id, text, reply_markup=reply_markup)
@@ -83,11 +83,11 @@ def handle_callback_query(token, upd, stored_searches):
     cb_id = cb["id"]
     c_chat_id = str(cb["message"]["chat"]["id"])
     msg_id = cb["message"]["message_id"]
-    c_data = cb.get("data", "")
+    c_data = cb.get("data", "Поза")
     cb_user = cb.get("from", {})
     u_id = str(cb_user.get("id", c_chat_id))
-    u_name = cb_user.get("username", "")
-    u_fname = cb_user.get("first_name", "")
+    u_name = cb_user.get("username", "Поза")
+    u_fname = cb_user.get("first_name", "Поза")
 
     touch_user(u_id, u_name, u_fname)
     c_sess = get_session(c_chat_id)
@@ -142,7 +142,7 @@ def handle_callback_query(token, upd, stored_searches):
                 c_sess["char_name"] = m_char[0]
                 c_sess["char_prompt"] = m_char[1]
             else:
-                p = c_sess.get("char_prompt", "")
+                p = c_sess.get("char_prompt", "Поза")
                 if "1girl" in p:
                     c_sess["char_prompt"] = p.replace("1girl", "1boy")
         else:
@@ -151,7 +151,7 @@ def handle_callback_query(token, upd, stored_searches):
                 c_sess["char_name"] = f_char[0]
                 c_sess["char_prompt"] = f_char[1]
             else:
-                p = c_sess.get("char_prompt", "")
+                p = c_sess.get("char_prompt", "Поза")
                 if "1boy" in p:
                     c_sess["char_prompt"] = p.replace("1boy", "1girl")
         save_sessions()
@@ -193,7 +193,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("preset_pose_"):
-        idx = int(c_data.replace("preset_pose_", ""))
+        idx = int(c_data.replace("preset_pose_", "Поза"))
         if 0 <= idx < len(DEFAULT_POSES):
             pose = DEFAULT_POSES[idx]
             c_sess["pose_name"] = pose[0]
@@ -235,7 +235,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("preset_env_"):
-        idx = int(c_data.replace("preset_env_", ""))
+        idx = int(c_data.replace("preset_env_", "Поза"))
         if 0 <= idx < len(DEFAULT_ENVS):
             env = DEFAULT_ENVS[idx]
             c_sess["env_name"] = env[0]
@@ -262,7 +262,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("res_"):
-        parts = c_data.replace("res_", "").split("_")
+        parts = c_data.replace("res_", "Поза").split("_")
         w, h = int(parts[0]), int(parts[1])
         c_sess["width"] = w
         c_sess["height"] = h
@@ -276,7 +276,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("set_model_"):
-        chosen = c_data.replace("set_model_", "")
+        chosen = c_data.replace("set_model_", "Поза")
         if chosen in AVAILABLE_MODELS:
             c_sess["model"] = chosen
             c_sess["state"] = "idle"
@@ -289,7 +289,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("set_samples_"):
-        val = int(c_data.replace("set_samples_", ""))
+        val = int(c_data.replace("set_samples_", "Поза"))
         if not is_admin(u_id, u_name):
             val = max(15, min(30, val))
         else:
@@ -335,7 +335,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("set_cfg_"):
-        val_str = c_data.replace("set_cfg_", "")
+        val_str = c_data.replace("set_cfg_", "Поза")
         try:
             val = round(min(max(1.0, float(val_str)), 15.0), 1)
             c_sess["cfg_scale"] = val
@@ -374,7 +374,7 @@ def handle_callback_query(token, upd, stored_searches):
     elif c_data == "start_ai_describe_char":
         c_sess["state"] = "awaiting_ai_char_name"
         save_sessions()
-        cur_name = c_sess.get("char_name", "")
+        cur_name = c_sess.get("char_name", "Поза")
         text = (
             "вњЁ <b>Р РђРЎРџРћР—РќРђР’РђРќРР• РџР•Р РЎРћРќРђР–Рђ Р§Р•Р Р•Р— РР</b>\n\n"
             "Р•СЃР»Рё РЅРµР№СЂРѕСЃРµС‚СЊ РЅРµ Р·РЅР°РµС‚ РІР°С€РµРіРѕ РїРµСЂСЃРѕРЅР°Р¶Р° РёР»Рё СЂРёСЃСѓРµС‚ РµРіРѕ РЅРµС‚РѕС‡РЅРѕ, "
@@ -470,7 +470,7 @@ def handle_callback_query(token, upd, stored_searches):
 
     elif c_data == "clear_env":
         c_sess["env_name"] = "Р‘РµР· РѕРєСЂСѓР¶РµРЅРёСЏ"
-        c_sess["env_prompt"] = ""
+        c_sess["env_prompt"] = "Поза"
         c_sess["state"] = "idle"
         save_sessions()
         t, m = make_env_menu(c_sess)
@@ -480,7 +480,7 @@ def handle_callback_query(token, upd, stored_searches):
     elif c_data.startswith("select_char_"):
         items = stored_searches.get(f"{c_chat_id}_char", [])
         try:
-            idx = int(c_data.replace("select_char_", ""))
+            idx = int(c_data.replace("select_char_", "Поза"))
             if not items or idx < 0 or idx >= len(items):
                 api_call(token, "answerCallbackQuery", {"callback_query_id": cb_id, "text": "вљ пёЏ Р РµР·СѓР»СЊС‚Р°С‚С‹ РїРѕРёСЃРєР° СѓСЃС‚Р°СЂРµР»Рё. РџРѕРІС‚РѕСЂРёС‚Рµ РїРѕРёСЃРє.", "show_alert": False})
                 send_message(token, c_chat_id, "вљ пёЏ Р РµР·СѓР»СЊС‚Р°С‚С‹ РїРѕРёСЃРєР° СѓСЃС‚Р°СЂРµР»Рё. РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РІС‹РїРѕР»РЅРёС‚Рµ РїРѕРёСЃРє Р·Р°РЅРѕРІРѕ.")
@@ -517,7 +517,7 @@ def handle_callback_query(token, upd, stored_searches):
     elif c_data.startswith("select_pose_"):
         items = stored_searches.get(f"{c_chat_id}_pose", [])
         try:
-            idx = int(c_data.replace("select_pose_", ""))
+            idx = int(c_data.replace("select_pose_", "Поза"))
             if not items or idx < 0 or idx >= len(items):
                 api_call(token, "answerCallbackQuery", {"callback_query_id": cb_id, "text": "вљ пёЏ Р РµР·СѓР»СЊС‚Р°С‚С‹ РїРѕРёСЃРєР° СѓСЃС‚Р°СЂРµР»Рё. РџРѕРІС‚РѕСЂРёС‚Рµ РїРѕРёСЃРє.", "show_alert": False})
                 send_message(token, c_chat_id, "вљ пёЏ Р РµР·СѓР»СЊС‚Р°С‚С‹ РїРѕРёСЃРєР° СѓСЃС‚Р°СЂРµР»Рё. РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РІС‹РїРѕР»РЅРёС‚Рµ РїРѕРёСЃРє Р·Р°РЅРѕРІРѕ.")
@@ -542,7 +542,7 @@ def handle_callback_query(token, upd, stored_searches):
     elif c_data.startswith("select_env_"):
         items = stored_searches.get(f"{c_chat_id}_env", [])
         try:
-            idx = int(c_data.replace("select_env_", ""))
+            idx = int(c_data.replace("select_env_", "Поза"))
             if not items or idx < 0 or idx >= len(items):
                 api_call(token, "answerCallbackQuery", {"callback_query_id": cb_id, "text": "вљ пёЏ Р РµР·СѓР»СЊС‚Р°С‚С‹ РїРѕРёСЃРєР° СѓСЃС‚Р°СЂРµР»Рё. РџРѕРІС‚РѕСЂРёС‚Рµ РїРѕРёСЃРє.", "show_alert": False})
                 send_message(token, c_chat_id, "вљ пёЏ Р РµР·СѓР»СЊС‚Р°С‚С‹ РїРѕРёСЃРєР° СѓСЃС‚Р°СЂРµР»Рё. РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РІС‹РїРѕР»РЅРёС‚Рµ РїРѕРёСЃРє Р·Р°РЅРѕРІРѕ.")
@@ -626,7 +626,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("buy_pkg_"):
-        pkg_key = c_data.replace("buy_pkg_", "")
+        pkg_key = c_data.replace("buy_pkg_", "Поза")
         pkg = STARS_PACKAGES.get(pkg_key)
         if pkg:
             invoice_payload = {
@@ -634,7 +634,7 @@ def handle_callback_query(token, upd, stored_searches):
                 "title": f"РџР°РєРµС‚: {pkg['title']}",
                 "description": f"РџРѕРєСѓРїРєР° {pkg['count']} РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹С… РіРµРЅРµСЂР°С†РёР№ Р°СЂС‚РѕРІ РІ GummyFlux Р±РµР· РѕРіСЂР°РЅРёС‡РµРЅРёР№ РїРѕ РІСЂРµРјРµРЅРё.",
                 "payload": f"stars_pkg_{pkg_key}_{u_id}_{int(time.time())}",
-                "provider_token": "",
+                "provider_token": "Поза",
                 "currency": "XTR",
                 "prices": json.dumps([{"label": f"{pkg['count']} РіРµРЅ.", "amount": pkg['stars']}])
             }
@@ -789,7 +789,7 @@ def handle_callback_query(token, upd, stored_searches):
     elif c_data == "confirm_exec_custom":
         if not check_pc_online_or_notify(token, c_chat_id, cb.get("message")):
             return
-        raw_prompt = c_sess.get("pending_custom_prompt", "")
+        raw_prompt = c_sess.get("pending_custom_prompt", "Поза")
         if not raw_prompt:
             reply_or_edit(token, c_chat_id, cb.get("message"), "РџСЂРѕРјС‚ РЅРµ РЅР°Р№РґРµРЅ РёР»Рё Р±С‹Р» РѕС‚РјРµРЅРµРЅ.", reply_markup={"inline_keyboard": [[{"text": "в—ЂпёЏ Р’ РіР»Р°РІРЅРѕРµ РјРµРЅСЋ", "callback_data": "menu_main"}]]})
             return
@@ -856,7 +856,7 @@ def handle_callback_query(token, upd, stored_searches):
     elif c_data == "confirm_exec_custom_ai":
         if not check_pc_online_or_notify(token, c_chat_id, cb.get("message")):
             return
-        raw_prompt = c_sess.get("pending_custom_prompt", "")
+        raw_prompt = c_sess.get("pending_custom_prompt", "Поза")
         if not raw_prompt:
             reply_or_edit(token, c_chat_id, cb.get("message"), "РџСЂРѕРјС‚ РЅРµ РЅР°Р№РґРµРЅ РёР»Рё Р±С‹Р» РѕС‚РјРµРЅРµРЅ.", reply_markup={"inline_keyboard": [[{"text": "в—ЂпёЏ Р’ РіР»Р°РІРЅРѕРµ РјРµРЅСЋ", "callback_data": "menu_main"}]]})
             return
@@ -977,7 +977,7 @@ def handle_callback_query(token, upd, stored_searches):
             q_pos = generation_queue.qsize() + 1
 
             if is_custom:
-                prompt = c_sess.get("last_custom_prompt") or c_sess.get("pending_custom_prompt", "")
+                prompt = c_sess.get("last_custom_prompt") or c_sess.get("pending_custom_prompt", "Поза")
                 char_name = "РљР°СЃС‚РѕРјРЅС‹Р№ Р°СЂС‚"
                 pose_name = "РЎРІРѕСЏ РїРѕР·Р°"
                 env_name = "РЎРІРѕРµ РѕРєСЂСѓР¶РµРЅРёРµ"
@@ -1063,7 +1063,7 @@ def handle_callback_query(token, upd, stored_searches):
             q_pos = generation_queue.qsize() + 1
 
             if is_custom:
-                prompt = c_sess.get("last_custom_prompt") or c_sess.get("pending_custom_prompt", "")
+                prompt = c_sess.get("last_custom_prompt") or c_sess.get("pending_custom_prompt", "Поза")
                 char_name = "РљР°СЃС‚РѕРјРЅС‹Р№ Р°СЂС‚"
                 pose_name = "РЎРІРѕСЏ РїРѕР·Р°"
                 env_name = "РЎРІРѕРµ РѕРєСЂСѓР¶РµРЅРёРµ"
@@ -1107,7 +1107,7 @@ def handle_callback_query(token, upd, stored_searches):
             send_message(token, c_chat_id, f"РџСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР° РїСЂРё РїРѕСЃС‚Р°РЅРѕРІРєРµ Р·Р°РґР°С‡Рё РІ РѕС‡РµСЂРµРґСЊ: {e}")
 
     elif c_data == "custom_search_char":
-        raw_prompt = c_sess.get("pending_custom_prompt", "")
+        raw_prompt = c_sess.get("pending_custom_prompt", "Поза")
         if not raw_prompt:
             reply_or_edit(token, c_chat_id, cb.get("message"), "Р—Р°РїСЂРѕСЃ РЅРµ РЅР°Р№РґРµРЅ.", reply_markup={"inline_keyboard": [[{"text": "в—ЂпёЏ Р’ РјРµРЅСЋ", "callback_data": "menu_main"}]]})
             return
@@ -1124,7 +1124,7 @@ def handle_callback_query(token, upd, stored_searches):
         threading.Thread(target=_bg_char_from_prompt, daemon=True).start()
 
     elif c_data == "custom_enhance_ai":
-        raw_prompt = c_sess.get("pending_custom_prompt", "")
+        raw_prompt = c_sess.get("pending_custom_prompt", "Поза")
         if not raw_prompt:
             reply_or_edit(token, c_chat_id, cb.get("message"), "Р—Р°РїСЂРѕСЃ РЅРµ РЅР°Р№РґРµРЅ.", reply_markup={"inline_keyboard": [[{"text": "в—ЂпёЏ Р’ РјРµРЅСЋ", "callback_data": "menu_main"}]]})
             return
@@ -1145,7 +1145,7 @@ def handle_callback_query(token, upd, stored_searches):
         threading.Thread(target=_bg_enhance, daemon=True).start()
 
     elif c_data == "cancel_custom_prompt":
-        c_sess["pending_custom_prompt"] = ""
+        c_sess["pending_custom_prompt"] = "Поза"
         c_sess["state"] = "idle"
         t, m = make_main_menu(c_sess, user_id=u_id, username=u_name)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
@@ -1165,7 +1165,7 @@ def handle_callback_query(token, upd, stored_searches):
         page = 0
         if c_data.startswith("admin_users_page_"):
             try:
-                page = int(c_data.replace("admin_users_page_", ""))
+                page = int(c_data.replace("admin_users_page_", "Поза"))
             except Exception:
                 page = 0
         t, m = render_admin_users(page)
@@ -1182,17 +1182,17 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), text, {"inline_keyboard": kb})
 
     elif c_data.startswith("admin_user_"):
-        target_uid = c_data.replace("admin_user_", "")
+        target_uid = c_data.replace("admin_user_", "Поза")
         t, m = render_admin_user_card(target_uid)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("admin_edit_base_"):
-        target_uid = c_data.replace("admin_edit_base_", "")
+        target_uid = c_data.replace("admin_edit_base_", "Поза")
         t, m = render_admin_edit_base_menu(target_uid)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("admin_set_base_"):
-        parts = c_data.replace("admin_set_base_", "").split("_")
+        parts = c_data.replace("admin_set_base_", "Поза").split("_")
         target_uid = parts[0]
         new_lim = int(parts[1])
         set_user_base_limit(target_uid, new_lim)
@@ -1200,7 +1200,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("admin_custom_base_"):
-        target_uid = c_data.replace("admin_custom_base_", "")
+        target_uid = c_data.replace("admin_custom_base_", "Поза")
         c_sess["state"] = "awaiting_custom_base_limit"
         c_sess["target_user_id"] = target_uid
         save_sessions()
@@ -1213,12 +1213,12 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), text, {"inline_keyboard": kb})
 
     elif c_data.startswith("admin_grant_"):
-        target_uid = c_data.replace("admin_grant_", "")
+        target_uid = c_data.replace("admin_grant_", "Поза")
         t, m = render_admin_grant_menu(target_uid)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("admin_add_grant_"):
-        parts = c_data.replace("admin_add_grant_", "").split("_")
+        parts = c_data.replace("admin_add_grant_", "Поза").split("_")
         target_uid = parts[0]
         amount_val = parts[1]
         add_user_bonus_generations(target_uid, amount_val)
@@ -1231,7 +1231,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("admin_custom_grant_"):
-        target_uid = c_data.replace("admin_custom_grant_", "")
+        target_uid = c_data.replace("admin_custom_grant_", "Поза")
         c_sess["state"] = "awaiting_custom_grant"
         c_sess["target_user_id"] = target_uid
         save_sessions()
@@ -1244,7 +1244,7 @@ def handle_callback_query(token, upd, stored_searches):
         reply_or_edit(token, c_chat_id, cb.get("message"), text, {"inline_keyboard": kb})
 
     elif c_data.startswith("admin_reset_daily_"):
-        target_uid = c_data.replace("admin_reset_daily_", "")
+        target_uid = c_data.replace("admin_reset_daily_", "Поза")
         reset_user_daily_count(target_uid)
         t, m = render_admin_user_card(target_uid)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
@@ -1253,19 +1253,19 @@ def handle_callback_query(token, upd, stored_searches):
         page = 0
         if c_data.startswith("admin_hist_page_"):
             try:
-                page = int(c_data.replace("admin_hist_page_", ""))
+                page = int(c_data.replace("admin_hist_page_", "Поза"))
             except Exception:
                 page = 0
         t, m = render_admin_history(page)
         reply_or_edit(token, c_chat_id, cb.get("message"), t, m)
 
     elif c_data.startswith("admin_view_art_"):
-        art_id = c_data.replace("admin_view_art_", "")
+        art_id = c_data.replace("admin_view_art_", "Поза")
         db = load_db()
         found = False
         for h in db.get("history", []):
             if h.get("id") == art_id:
-                img_p = h.get("image_path", "")
+                img_p = h.get("image_path", "Поза")
                 if img_p and os.path.exists(img_p):
                     try:
                         with open(img_p, "rb") as f_img:
@@ -1362,8 +1362,8 @@ def handle_message(token, msg, stored_searches):
     m_chat = str(msg["chat"]["id"])
     msg_user = msg.get("from", {})
     u_id = str(msg_user.get("id", m_chat))
-    u_name = msg_user.get("username", "")
-    u_fname = msg_user.get("first_name", "")
+    u_name = msg_user.get("username", "Поза")
+    u_fname = msg_user.get("first_name", "Поза")
 
     touch_user(u_id, u_name, u_fname)
     m_sess = get_session(m_chat)
@@ -1373,7 +1373,7 @@ def handle_message(token, msg, stored_searches):
         sp = msg["successful_payment"]
         if sp.get("currency") == "XTR":
             amount_stars = sp.get("total_amount", 2)
-            payload = sp.get("invoice_payload", "")
+            payload = sp.get("invoice_payload", "Поза")
             count_to_add = None
             if payload.startswith("stars_pkg_"):
                 parts = payload.split("_")
@@ -1459,7 +1459,7 @@ def handle_message(token, msg, stored_searches):
             return
 
     # 3. РўР•РљРЎРўРћР’Р«Р• РЎРћРћР‘Р©Р•РќРРЇ
-    text = msg.get("text", "").strip()
+    text = msg.get("text", "Поза").strip()
     if not text:
         return
 
@@ -1470,7 +1470,7 @@ def handle_message(token, msg, stored_searches):
         m_sess["state"] = "idle"
         parts = text.split()
         if len(parts) > 1 and parts[1].startswith("ref_"):
-            inviter_id = parts[1].replace("ref_", "").strip()
+            inviter_id = parts[1].replace("ref_", "Поза").strip()
             success, _ = process_referral(u_id, inviter_id, token, send_message)
             if success:
                 welcome_ref = (
@@ -1695,7 +1695,7 @@ def handle_message(token, msg, stored_searches):
         send_message(token, m_chat, reply_text, reply_markup={"inline_keyboard": kb})
 
     elif m_sess.get("state") == "awaiting_resolution":
-        clean_res = text.lower().replace("С…", "x").replace("*", "x").replace(" ", "")
+        clean_res = text.lower().replace("С…", "x").replace("*", "x").replace(" ", "Поза")
         parts = clean_res.split("x")
         if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
             w = int(parts[0])
