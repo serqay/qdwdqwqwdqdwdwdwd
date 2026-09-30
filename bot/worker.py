@@ -236,6 +236,8 @@ def queue_worker(token):
                 threading.Thread(target=progress_bar_worker, args=(token, chat_id, msg_id, progress_event, prefix), daemon=True).start()
             
             with gpu_lock:
+                from bot.config import get_session
+                c_sess = get_session(str(chat_id))
                 if c_sess.get("use_img2img") and c_sess.get("init_image_b64"):
                     from bot.img2img import generate_img2img
                     b64 = c_sess.get("init_image_b64").split(",")[-1]
